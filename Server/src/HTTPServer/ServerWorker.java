@@ -5,6 +5,7 @@ import java.net.Socket;
 import java.util.HashMap;
 
 public class ServerWorker extends Thread {
+
     byte[] dataBytes;
     byte[] resourceBytes;
     private Socket socket;
@@ -18,6 +19,13 @@ public class ServerWorker extends Thread {
         this.socket = socket;
     }
 
+    private void completeGET() {
+        if (requestedPath.equals("/"))
+            requestedPath = "/index.html";
+
+        Boolean resourceExists = Extensions.resourcesExists(requestedPath);
+        GET(resourceExists);
+    }
 
     private void GET(Boolean resourceExists) {
         StringBuilder responseBuilder = new StringBuilder();
@@ -49,15 +57,16 @@ public class ServerWorker extends Thread {
             responseBuilder.append("Content-Type: " + contentType + "\n");
             responseBuilder.append("Connection: Closed\n");
             responseBuilder.append("\r\n");
-            OutputStream outputStream = (socket.getOutputStream());
-            System.out.println(socket.isConnected());
-            responseBuilder.append(fileInputStream);
 
-
+            OutputStream outputStream = socket.getOutputStream();
             outputStream.write(responseBuilder.toString().getBytes());
+            outputStream.write(fileInputStream.readAllBytes());
             outputStream.flush();
+            outputStream.close();
 
-            fileInputStream.close();
+            SocketServer.ACTIVE_WORKERS = SocketServer.ACTIVE_WORKERS - 1;
+            socket.close();
+
         } catch (Exception exception) {
             exception.printStackTrace();
         }
@@ -76,13 +85,12 @@ public class ServerWorker extends Thread {
             System.out.println("Can't save resource on Server");
             ioException.printStackTrace();
         }
-
     }
 
 
 //    This function is responsible for copying the resource bytes from the main byte array by passing the start of resourceStartIndex
     void processPOST(int resourceStartIndex){
-        int padding=3;
+        int padding=1;
         int dataStartIndex=resourceStartIndex+padding;
 
          resourceBytes=new byte[dataBytes.length-dataStartIndex];
@@ -95,7 +103,7 @@ public class ServerWorker extends Thread {
         saveResource(resourceBytes);
     }
 
-    void processSocketStream(){
+    void completePOST(){
         try{
             InputStream is=socket.getInputStream();
             dataBytes=is.readAllBytes();
@@ -106,38 +114,41 @@ public class ServerWorker extends Thread {
             int resourceStartIndex=dataInString.indexOf("\n\r");
 
 //            get Client request from the first line
-             clientRequest=dataInString.split("\\R")[0];
 //             Get the requested path from client
-            requestedPath=clientRequest.split(" ")[1];
-            String clientMethodType=clientRequest.split(" ")[0];
 
-            if(clientMethodType.equals("GET")){
-                Boolean isResourceExists=Extensions.resourcesExists(requestedPath);
-                GET(isResourceExists);
-            }
+            processPOST(resourceStartIndex);
+            POST();
 
-            else if(clientMethodType.equals("POST")) {
-                processPOST(resourceStartIndex);
-                POST();
-            }
-            else throw new RuntimeException("Unsupported request method type");
         }
         catch(IOException ioException){
             System.out.println("Error in reading socket stream");
 
         }
-
     }
 
     @Override
     public void run() {
         super.run();
-        try{
-            processSocketStream();
-        }
-        catch(Exception exception){
+        try {
+
+            InputStreamReader inStream = new InputStreamReader(socket.getInputStream());
+            BufferedReader bufferedReader = new BufferedReader(inStream);
+            String lineReader = bufferedReader.readLine();
+            String[] lineComponents = lineReader.split(" ");
+
+            httpMethod = lineComponents[0];
+            requestedPath = lineComponents[1];
+
+            if (httpMethod.equals("GET")) {
+                completeGET();
+            } else {
+                completePOST();
+            }
+
+        } catch (Exception exception) {
            exception.printStackTrace();
         }
-        }
     }
+
+}
 

@@ -4,7 +4,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class SocketServer {
-    public static String resourcesDirectory = "/Users/test/Desktop/Term 8/Computer networks/Final-Project/Sockets/Server/src/HTTPServer/Resources/";
+    public static String  resourcesDirectory = "/Users/Youssef/Desktop/Server/Server/src/HTTPServer/Resources";
     public static Integer ACTIVE_WORKERS = 0;
     public static Integer PORT = 8080;
 
@@ -15,10 +15,11 @@ public class SocketServer {
             System.out.println("Listening on port " + PORT + "...");
 
             while (true) {
-                ACTIVE_WORKERS = ACTIVE_WORKERS + 1;
                 Socket clientSocket = serverSocket.accept();
                 ServerWorker serverWorker = new ServerWorker(clientSocket);
                 serverWorker.start();
+                ACTIVE_WORKERS = ACTIVE_WORKERS + 1;
+                System.out.println("Server Connections: " + ACTIVE_WORKERS);
             }
 
         } catch (Exception exception) {
