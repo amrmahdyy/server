@@ -25,6 +25,8 @@ public class Extensions {
     public static String getContentType(String path)  {
         if (path.endsWith(".html") || path.endsWith(".htm"))
             return "text/html";
+        if(path.endsWith(".pdf"))
+            return "application/pdf";
         if (path.endsWith(".json"))
             return "application/json";
         if (path.endsWith(".jpeg"))
