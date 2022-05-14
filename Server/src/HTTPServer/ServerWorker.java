@@ -131,6 +131,7 @@ public class ServerWorker extends Thread {
                 requestedPath = lineComponents[1];
 
                 if (httpMethod.equals("GET")) {
+//                    Middleware.Middleware().applyCaching(socket,requestedPath);
                     completeGET();
                 } else {
                     completePOST();

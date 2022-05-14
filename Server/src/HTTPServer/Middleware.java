@@ -6,9 +6,10 @@ import java.io.OutputStreamWriter;
 import java.net.Socket;
 
 public class Middleware {
-    private static Middleware middleware;
+    private static Middleware middleware=new Middleware();
      String  resourceTarget="";
      Socket socket;
+     private static String CRLF="\r\n";
      public static  Middleware Middleware(){
          return middleware;
      }
@@ -27,7 +28,7 @@ public class Middleware {
         OutputStreamWriter outputStreamWriter=new OutputStreamWriter(socket.getOutputStream());
         BufferedWriter bufferedWriter=new BufferedWriter(outputStreamWriter);
 
-        bufferedWriter.write("Last-Modified: "+getLastModifiedDate());
+        bufferedWriter.write("Last-Modified: "+getLastModifiedDate()+CRLF);
 
         bufferedWriter.flush();
         outputStreamWriter.flush();
