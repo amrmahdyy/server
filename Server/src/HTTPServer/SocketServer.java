@@ -4,9 +4,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class SocketServer {
-    public static String  resourcesDirectory = "/Users/Youssef/Desktop/Server/Server/src/HTTPServer/Resources";
+    public static String  resourcesDirectory = "/Users/test/Desktop/to_be_uploaded/server/Server/src/HTTPServer/Resources";
     public static Integer ACTIVE_WORKERS = 0;
-    public static Integer PORT = 8080;
+    public static Integer PORT = 8081;
 
     public static void main(String[] args) throws Exception {
         try {

@@ -6,9 +6,10 @@ import java.util.HashMap;
 
 public class ServerWorker extends Thread {
 
-    byte[] dataBytes;
-    byte[] resourceBytes;
+
     private Socket socket;
+    String header="";
+    String clientFileData="";
     String clientRequest="";
     private String httpMethod, requestedPath;
     private String notFoundPath = "/404.html";
@@ -58,11 +59,12 @@ public class ServerWorker extends Thread {
             responseBuilder.append("Connection: Closed\n");
             responseBuilder.append("\r\n");
 
-            OutputStream outputStream = socket.getOutputStream();
-            outputStream.write(responseBuilder.toString().getBytes());
-            outputStream.write(fileInputStream.readAllBytes());
-            outputStream.flush();
-            outputStream.close();
+            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(socket.getOutputStream());
+            outputStreamWriter.write(responseBuilder.toString());
+            String fileInString=new String(fileInputStream.readAllBytes());
+            outputStreamWriter.write(fileInString);
+            outputStreamWriter.flush();
+            outputStreamWriter.close();
 
             SocketServer.ACTIVE_WORKERS = SocketServer.ACTIVE_WORKERS - 1;
             socket.close();
@@ -75,11 +77,12 @@ public class ServerWorker extends Thread {
 
 //    This function is used by POST function where it saves the resource
 
-    void saveResource(byte[]resourceBytes){
+    void saveResource(){
         try{
+            byte[]clientFileInBytes=clientFileData.getBytes();
             File file=new File(SocketServer.resourcesDirectory+requestedPath);
             FileOutputStream fileOutputStream=new FileOutputStream(file);
-            fileOutputStream.write(resourceBytes);
+            fileOutputStream.write(clientFileInBytes);
         }
         catch(IOException ioException){
             System.out.println("Can't save resource on Server");
@@ -88,40 +91,26 @@ public class ServerWorker extends Thread {
     }
 
 
-//    This function is responsible for copying the resource bytes from the main byte array by passing the start of resourceStartIndex
-    void processPOST(int resourceStartIndex){
-        int padding=1;
-        int dataStartIndex=resourceStartIndex+padding;
-
-         resourceBytes=new byte[dataBytes.length-dataStartIndex];
-        for(int i=0;i<resourceBytes.length;i++){
-            resourceBytes[i]=dataBytes[i+dataStartIndex];
-        }
-    }
-
-    void POST(){
-        saveResource(resourceBytes);
-    }
 
     void completePOST(){
         try{
-            InputStream is=socket.getInputStream();
-            dataBytes=is.readAllBytes();
+          InputStreamReader inputStreamReader=new InputStreamReader(socket.getInputStream());
+          BufferedReader bufferedReader=new BufferedReader(inputStreamReader);
 
-            String dataInString=new String(dataBytes);
-            System.out.println(dataInString);
-//            Search for the end of the header
-            int resourceStartIndex=dataInString.indexOf("\n\r");
-
-//            get Client request from the first line
-//             Get the requested path from client
-
-            processPOST(resourceStartIndex);
-            POST();
+          Boolean isHeader=true;
+          String line="";
+          while((line=bufferedReader.readLine())!=null){
+              if(isHeader)
+                  header+=line+"\r\n";
+              else
+                  clientFileData+=line;
+              if(line.isBlank())
+                  isHeader=false;
+          }
 
         }
         catch(IOException ioException){
-            System.out.println("Error in reading socket stream");
+            System.out.println("Error in reading client socket stream");
 
         }
     }
@@ -134,15 +123,19 @@ public class ServerWorker extends Thread {
             InputStreamReader inStream = new InputStreamReader(socket.getInputStream());
             BufferedReader bufferedReader = new BufferedReader(inStream);
             String lineReader = bufferedReader.readLine();
-            String[] lineComponents = lineReader.split(" ");
+            if(lineReader!=null) {
+                System.out.println(lineReader);
+                String[] lineComponents = lineReader.split(" ");
 
-            httpMethod = lineComponents[0];
-            requestedPath = lineComponents[1];
+                httpMethod = lineComponents[0];
+                requestedPath = lineComponents[1];
 
-            if (httpMethod.equals("GET")) {
-                completeGET();
-            } else {
-                completePOST();
+                if (httpMethod.equals("GET")) {
+                    completeGET();
+                } else {
+                    completePOST();
+                    saveResource();
+                }
             }
 
         } catch (Exception exception) {
