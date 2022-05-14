@@ -2,11 +2,12 @@ package HTTPServer;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 
 public class ServerWorker extends Thread {
 
-
+    byte[]clientFileInBytes;
     private Socket socket;
     String header="";
     String clientFileData="";
@@ -78,7 +79,6 @@ public class ServerWorker extends Thread {
 
     void saveResource(){
         try{
-            byte[]clientFileInBytes=clientFileData.getBytes();
             File file=new File(SocketServer.resourcesDirectory+requestedPath);
             FileOutputStream fileOutputStream=new FileOutputStream(file);
             fileOutputStream.write(clientFileInBytes);
@@ -92,20 +92,40 @@ public class ServerWorker extends Thread {
 
 
     void completePOST(){
+        header="";
+        clientFileInBytes=null;
         try{
-          InputStreamReader inputStreamReader=new InputStreamReader(socket.getInputStream());
-          BufferedReader bufferedReader=new BufferedReader(inputStreamReader);
-
-          Boolean isHeader=true;
-          String line="";
-          while((line=bufferedReader.readLine())!=null){
-              if(isHeader)
-                  header+=line+"\r\n";
-              else
-                  clientFileData+=line;
-              if(line.isBlank())
-                  isHeader=false;
-          }
+            InputStream inputStream=socket.getInputStream();
+            ByteArrayOutputStream baos=new ByteArrayOutputStream();
+            int chr;
+            while((chr=inputStream.read())!=-1){
+                baos.write(chr);
+            }
+            byte[]responseInBytes= baos.toByteArray();
+            String clientResponse=new String(responseInBytes,Charset.forName("UTF-8"));
+//            System.out.println(clientResponse);
+            int startIndex=clientResponse.indexOf("\n\r");
+            if(startIndex>0) {
+                header += clientResponse.substring(0, startIndex);
+                int padding = 3;
+                clientFileInBytes = new byte[responseInBytes.length - startIndex - padding];
+                for (int i = 0; i < clientFileInBytes.length; i++) {
+                    clientFileInBytes[i] = responseInBytes[i + startIndex + padding];
+                }
+            }
+//          InputStreamReader inputStreamReader=new InputStreamReader(socket.getInputStream());
+//          BufferedReader bufferedReader=new BufferedReader(inputStreamReader);
+//            System.out.println("POST SERVER");
+//          Boolean isHeader=true;
+//          String line="";
+//          while((line=bufferedReader.readLine())!=null){
+//              if(isHeader)
+//                  header+=line+"\r\n";
+//              else
+//                  clientFileData+=line;
+//              if(line.isBlank())
+//                  isHeader=false;
+//          }
 
         }
         catch(IOException ioException){
@@ -134,6 +154,7 @@ public class ServerWorker extends Thread {
                     completeGET();
                 } else {
                     completePOST();
+                    if(clientFileInBytes!=null)
                     saveResource();
                 }
             }
