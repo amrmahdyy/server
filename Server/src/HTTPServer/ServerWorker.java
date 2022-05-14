@@ -59,12 +59,11 @@ public class ServerWorker extends Thread {
             responseBuilder.append("Connection: Closed\n");
             responseBuilder.append("\r\n");
 
-            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(socket.getOutputStream());
-            outputStreamWriter.write(responseBuilder.toString());
-            String fileInString=new String(fileInputStream.readAllBytes());
-            outputStreamWriter.write(fileInString);
-            outputStreamWriter.flush();
-            outputStreamWriter.close();
+            OutputStream outStream = socket.getOutputStream();
+            outStream.write(responseBuilder.toString().getBytes());
+            outStream.write(fileInputStream.readAllBytes());
+            outStream.flush();
+            outStream.close();
 
             SocketServer.ACTIVE_WORKERS = SocketServer.ACTIVE_WORKERS - 1;
             socket.close();
