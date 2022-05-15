@@ -1,17 +1,14 @@
 package HTTPServer;
-
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 
+import org.apache.commons.io.IOUtils;
 public class ServerWorker extends Thread {
-
     byte[]clientFileInBytes;
     private Socket socket;
     String header="";
-    String clientFileData="";
-    String clientRequest="";
     private String httpMethod, requestedPath;
     private String notFoundPath = "/404.html";
     private HashMap<String, String> httpHeaders = new HashMap<String, String>();
@@ -21,12 +18,13 @@ public class ServerWorker extends Thread {
         this.socket = socket;
     }
 
-    private void completeGET() {
+    private void completeGET() throws IOException {
         if (requestedPath.equals("/"))
             requestedPath = "/index.html";
 
         Boolean resourceExists = Extensions.resourcesExists(requestedPath);
         GET(resourceExists);
+        this.socket.close();
     }
 
     private void GET(Boolean resourceExists) {
@@ -62,13 +60,12 @@ public class ServerWorker extends Thread {
 
             OutputStream outStream = socket.getOutputStream();
             outStream.write(responseBuilder.toString().getBytes());
-            outStream.write(fileInputStream.readAllBytes());
+            byte[] fileBytesArr=IOUtils.toByteArray(fileInputStream);
+            outStream.write(fileBytesArr);
             outStream.flush();
             outStream.close();
 
             SocketServer.ACTIVE_WORKERS = SocketServer.ACTIVE_WORKERS - 1;
-            socket.close();
-
         } catch (Exception exception) {
             exception.printStackTrace();
         }
@@ -101,6 +98,7 @@ public class ServerWorker extends Thread {
             while((chr=inputStream.read())!=-1){
                 baos.write(chr);
             }
+//            System.out.println(baos.size());
             byte[]responseInBytes= baos.toByteArray();
             String clientResponse=new String(responseInBytes,Charset.forName("UTF-8"));
 //            System.out.println(clientResponse);
@@ -112,21 +110,9 @@ public class ServerWorker extends Thread {
                 for (int i = 0; i < clientFileInBytes.length; i++) {
                     clientFileInBytes[i] = responseInBytes[i + startIndex + padding];
                 }
+//                System.out.println("File size from client : "+clientFileInBytes.length);
             }
-//          InputStreamReader inputStreamReader=new InputStreamReader(socket.getInputStream());
-//          BufferedReader bufferedReader=new BufferedReader(inputStreamReader);
-//            System.out.println("POST SERVER");
-//          Boolean isHeader=true;
-//          String line="";
-//          while((line=bufferedReader.readLine())!=null){
-//              if(isHeader)
-//                  header+=line+"\r\n";
-//              else
-//                  clientFileData+=line;
-//              if(line.isBlank())
-//                  isHeader=false;
-//          }
-
+//            System.out.println(header);
         }
         catch(IOException ioException){
             System.out.println("Error in reading client socket stream");

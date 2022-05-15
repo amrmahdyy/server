@@ -27,6 +27,8 @@ public class Extensions {
             return "text/html";
         if(path.endsWith(".pdf"))
             return "application/pdf";
+        if(path.endsWith(".zip"))
+            return "application/zip";
         if (path.endsWith(".json"))
             return "application/json";
         if (path.endsWith(".jpeg"))
@@ -39,6 +41,8 @@ public class Extensions {
             return "video/mp4";
         if (path.endsWith(".mpeg"))
             return "audio/mpeg";
+        if (path.endsWith(".mp3"))
+            return "audio/mp3";
         if (path.endsWith(".png"))
             return "image/png";
         if (path.endsWith(".ico"))
