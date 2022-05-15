@@ -5,11 +5,12 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 
 import org.apache.commons.io.IOUtils;
-public class ServerWorker extends Thread {
+
+public class ServerWorker extends NetworkThread {
     byte[]clientFileInBytes;
     private Socket socket;
     String header="";
-    private String httpMethod, requestedPath;
+    private String httpMethod, requestedPath, httpVersion;
     private String notFoundPath = "/404.html";
     private HashMap<String, String> httpHeaders = new HashMap<String, String>();
     private StringBuilder httpBody = new StringBuilder();
@@ -24,7 +25,6 @@ public class ServerWorker extends Thread {
 
         Boolean resourceExists = Extensions.resourcesExists(requestedPath);
         GET(resourceExists);
-        this.socket.close();
     }
 
     private void GET(Boolean resourceExists) {
@@ -37,11 +37,11 @@ public class ServerWorker extends Thread {
 
         if (resourceExists) {
             targetURI = requestedPath;
-            responseBuilder.append("HTTP/1.0 200 OK\r\n");
+            responseBuilder.append(httpVersion + " 200 OK\r\n");
 
         } else {
             targetURI = notFoundPath;
-            responseBuilder.append("HTTP/1.0 404 Not Found\r\n");
+            responseBuilder.append(httpVersion + " 404 Not Found\r\n");
         }
 
         try {
@@ -55,17 +55,15 @@ public class ServerWorker extends Thread {
             responseBuilder.append("Last-Modified: " + Extensions.getLastModifiedDate(targetURI) + "\n");
             responseBuilder.append("Content-Length: " + contentLength.toString() + "\n");
             responseBuilder.append("Content-Type: " + contentType + "\n");
-            responseBuilder.append("Connection: Closed\n");
             responseBuilder.append("\r\n");
+
+            byte[] fileBytesArr = IOUtils.toByteArray(fileInputStream);
 
             OutputStream outStream = socket.getOutputStream();
             outStream.write(responseBuilder.toString().getBytes());
-            byte[] fileBytesArr=IOUtils.toByteArray(fileInputStream);
             outStream.write(fileBytesArr);
             outStream.flush();
-            outStream.close();
 
-            SocketServer.ACTIVE_WORKERS = SocketServer.ACTIVE_WORKERS - 1;
         } catch (Exception exception) {
             exception.printStackTrace();
         }
@@ -121,34 +119,47 @@ public class ServerWorker extends Thread {
     }
 
     @Override
-    public void run() {
-        super.run();
+    public void doRun() {
         try {
 
-            InputStreamReader inStream = new InputStreamReader(socket.getInputStream());
-            BufferedReader bufferedReader = new BufferedReader(inStream);
-            String lineReader = bufferedReader.readLine();
-            if(lineReader!=null) {
-                System.out.println(lineReader);
-                String[] lineComponents = lineReader.split(" ");
+            while (!(socket.isClosed())) {
 
-                httpMethod = lineComponents[0];
-                requestedPath = lineComponents[1];
+                InputStreamReader inStream = new InputStreamReader(socket.getInputStream());
+                BufferedReader bufferedReader = new BufferedReader(inStream);
 
-                if (httpMethod.equals("GET")) {
-//                    Middleware.Middleware().applyCaching(socket,requestedPath);
-                    completeGET();
+                String lineReader = bufferedReader.readLine();
+
+                if (lineReader != null && !lineReader.trim().equals("")) {
+
+                    System.out.println(lineReader);
+                    String[] lineComponents = lineReader.split(" ");
+
+                    httpMethod = lineComponents[0];
+                    requestedPath = lineComponents[1];
+
+                    if (httpMethod.equals("GET")) {
+                        httpVersion = lineComponents[2];
+                        completeGET();
+
+                        if (httpVersion.equals("HTTP/1.0")) {
+                            socket.close();
+                            break;
+                        }
+
+                    } else {
+                        completePOST();
+                        if (clientFileInBytes != null)
+                            saveResource();
+                    }
+
                 } else {
-                    completePOST();
-                    if(clientFileInBytes!=null)
-                    saveResource();
+                    socket.close();
                 }
             }
 
         } catch (Exception exception) {
-           exception.printStackTrace();
+            exception.printStackTrace();
         }
     }
-
 }
 
